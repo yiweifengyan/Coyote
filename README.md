@@ -57,9 +57,25 @@ Coyote contains the following software layers, each adding higher level of abstr
   <img src="img/cyt_sw_light.png" width = 600>
 </picture>
 
+# How to run it
+Added/Modified by Shien 2024-02-20
+
 ## Init
+ - Book a server alveo-u55c-03/04/05/… running Vivado 2022.1
+   Book address https://hacc-booking.inf.ethz.ch/index.php 
+ - Login to build servers first. They are faster than those with FPGAs
+ - Add bashrc to source vivado 2022.1 upon login
+ - Clone the mem_bypass branch
 ~~~~
-$ git clone https://github.com/fpgasystems/Coyote.git
+$ ssh -x shizhu@alveo-u55c-03.inf.ethz.ch
+
+# .bashrc
+# Xilinx Tools (XRT, Vivado, Vitis, Vitis_HLS) need to be enabled for proper operation:
+source /opt/sgrt/cli/enable/xrt
+source /opt/sgrt/cli/enable/vivado
+source /opt/sgrt/cli/enable/vitis
+
+$ git clone -b mem_bypass https://github.com/yiweifengyan/Coyote.git
 ~~~~
 
 ## Build `HW`
@@ -69,7 +85,33 @@ $ cd hw && mkdir build && cd build
 ~~~~
 #### Enter a valid system configuration :
 ~~~~
-$ cmake .. -DFDEV_NAME=u250 <params...>
+$ cmake .. -DFDEV_NAME=u55c -DEXAMPLE=perf_dlm
+
+# This specifies these augments and adds the Coyote/hw/hdl/operators/examples/dlm 
+$ cmake .. -DFDEV_NAME=u55c -DEN_HLS=0 -DEN_BPSS=1 -DEN_STRM=1 -DEN_MEM_BPSS=1 -DN_CARD_AXI=4 -DHBM_BPSS=1 -DACLK_F=250 -DEN_RDMA_0=1 -DEN_RPC=1
+
+# I have added these augments to Coyote/hw/examples.cmake
+elseif(EXAMPLE STREQUAL "perf_dlm")
+    message("** dlm: Distributed Lock Management with mem_bypass. Force config.")
+    set(EN_HLS 0)
+    set(EN_BPSS 1)
+    set(EN_STRM 1)
+    set(EN_MEM_BPSS 1)
+    set(N_CARD_AXI 4)
+    set(HBM_BPSS 1)
+    # set(EN_UCLK 1)
+    # set(UCLK_F 250)
+    set(ACLK_F 250)
+    # Flags related to RDMA
+    set(EN_RDMA_0 1)
+    set(EN_RPC 1)
+    
+# I have added an entry to the Coyote/hw/scripts/example.tcl.in
+"perf_dlm" {
+        puts "Add the dlm: Distributed Lock Management"
+        add_files "$hw_dir/hdl/operators/examples/dlm/"
+        update_compile_order -fileset sources_1
+    }
 ~~~~
 
 Following configuration options are provided:
@@ -112,27 +154,36 @@ Following configuration options are provided:
 | TLBL_BITS  | <**21**:>                | TLB (huge) page order (2 MB def.)             |
 | EN_NRU     | <**0**:1>                | NRU policy                                    |
 
-#### Create the shell and the project :
+#### Create the shell and the project (10-30 minues) :
 ~~~~
 $ make shell
+zhu@hacc-build-01:~/Coyote/hw/build$ make shell 
 ~~~~
 
 The project is created once the above command completes. Arbitrary user logic can then be inserted. If any of the existing examples are chosen, nothing needs to be done at this step.
 
 User logic wrappers can be found under build project directory in the **hdl/config_X** where **X** represents the chosen PR configuration. Both HLS and HDL wrappers are placed in the same directories.
 
-If multiple PR configurations are present it is advisable to put the most complex configuration in the initial one (**config_0**). Additional configurations can always be created with `make dynamic`. Explicit floorplanning should be done manually after synthesis (providing default floorplanning generally makes little sense).
+copy the user defined logic (No need if use the automated user_logic insertion)  
+to /home/shizhu/Coyote/hw/build/lynx/hdl/  
+-- config_0: Should be the user logic code  
+-- wrappers  
+|--common  
+|--config_0: Should be the user logic wrapper  
+
+~~If multiple PR configurations are present it is advisable to put the most complex configuration in the initial one (**config_0**). Additional configurations can always be created with `make dynamic`. Explicit floorplanning should be done manually after synthesis (providing default floorplanning generally makes little sense).~~
 
 Project can always be managed from Vivado GUI, for those more experienced with FPGA design flows.
 
 
-#### When the user design is ready, compilation can be started with the following command :
+#### When the user design is ready, compilation can be started with the following command (1-3 hours):
 ~~~~
 $ make compile
+zhu@hacc-build-01:~/Coyote/hw/build$ make compile 
 ~~~~
 Once the compilation finishes the initial bitstream with the static region can be loaded to the FPGA via JTAG. All compiled bitstreams, including partial ones, can be found in the build directory under **bitstreams**.
 
-#### User logic can be simulated by creating the testbench project :
+#### ~~User logic can be simulated by creating the testbench project :~~
 ~~~~
 $ make sim
 ~~~~
@@ -141,24 +192,81 @@ The logic integration, stimulus generation and scoreboard checking should be ada
 ## Driver
 
 #### After the bitstream has been loaded, the driver can be compiled on the target host machine :
+Note: Switch to FPGA server to make
 ~~~~
 $ cd driver && make
+zhu@alveo-u55c-01:~/Coyote/driver$ make
 ~~~~
 
-#### Insert the driver into the kernel (don't forget privileges) :
+#### ~~Insert the driver into the kernel (don't forget privileges) :~~
 ~~~~
 $ insmod fpga_drv.ko
 ~~~~
-Restart of the machine might be necessary after this step if the `util/hot_reset.sh` script is not working (as is usually the case).
+~~Restart of the machine might be necessary after this step if the `util/hot_reset.sh` script is not working (as is usually the case).~~  
+I don't and shouldn't restart the server. If there is some errors, call Dario or Max to hot-reset the target FPGA board only.
+
+#### Generate ssh key (one server only once)
+```
+zhu@hacc-build-01:~$ ssh-keygen
+zhu@hacc-build-01:~$ ssh-copy-id zhu@alveo-u55c-03
+```
+
+#### Insert the Driver
+Note: Switch to build server to insert
+```
+zhu@hacc-build-01:~$ cd workspace/Coyote/
+zhu@hacc-build-01:~/workspace/Coyote$  ./flow_alveo.sh hw/build/bitstreams/cyt_top driver 0
+*** Enter server IDs:
+3
+*** Activating server ...
+ **
+[1] 17:06:48 [SUCCESS] alveo-u55c-03
+*** Enabling Vivado hw_server ...
+```
 
 ## Build `SW`
-
+Note: Switch to FPGA server to make  
+Note: /usr/bin/cmake ../ -DTARGET_DIR=examples/perf_dlm  
 Available `sw` projects (as well as any other) can be built with the following commands :
 ~~~~
 $ cd sw && mkdir build && cd build
 $ cmake ../ -DTARGET_DIR=<example_path>
+zhu@alveo-u55c-03:~/workspace/Coyote/sw/build$ /usr/bin/cmake ../ -DTARGET_DIR=examples/perf_rdma
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/shizhu/workspace/Coyote/sw/build
+
 $ make
+zhu@alveo-u55c-03:~/workspace/Coyote/sw/build$ make
+Scanning dependencies of target main
+[ 10%] Building CXX object CMakeFiles/main.dir/examples/perf_rdma/main.cpp.o
+[ 20%] Building CXX object CMakeFiles/main.dir/src/cArbiter.cpp.o
+[ 30%] Building CXX object CMakeFiles/main.dir/src/cProcess.cpp.o
+[ 40%] Building CXX object CMakeFiles/main.dir/src/cSched.cpp.o
+[ 50%] Building CXX object CMakeFiles/main.dir/src/cService.cpp.o
+[ 60%] Building CXX object CMakeFiles/main.dir/src/cThread.cpp.o
+[ 70%] Building CXX object CMakeFiles/main.dir/src/ibvQpConn.cpp.o
+[ 80%] Building CXX object CMakeFiles/main.dir/src/ibvQpMap.cpp.o
+[ 90%] Building CXX object CMakeFiles/main.dir/src/ibvStructs.cpp.o
+[100%] Linking CXX executable main
+[100%] Built target main
+
+# run main
+zhu@alveo-u55c-03:~/workspace/Coyote/sw/build$ ls
+CMakeCache.txt  CMakeFiles  Makefile  cmake_install.cmake  main
+zhu@alveo-u55c-03:~/workspace/Coyote/sw/build$ ./main
+-- PARAMS
+-----------------------------------------------
+IBV IP address: 10.253.74.76
+Number of allocated pages: 1
+Read operation
+Min size: 128
+Max size: 32768
+Number of throughput reps: 1000
+Number of latency reps: 100
 ~~~~
+
+# Other things
 
 ## Publication
 

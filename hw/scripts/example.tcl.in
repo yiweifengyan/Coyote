@@ -110,6 +110,12 @@ switch $cfg(example) {
         update_compile_order -fileset sources_1
     }
 
+    "perf_dlm" {
+        puts "Add the dlm: Distributed Lock Management"
+        add_files "$hw_dir/hdl/operators/examples/dlm/"
+        update_compile_order -fileset sources_1
+    }
+
     default {
         puts "No example chosen"
     }
