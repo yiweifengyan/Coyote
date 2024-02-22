@@ -2,6 +2,9 @@
 	// USER LOGIC
     //
 
+    import hash_table::*;
+    import linked_list::*;
+    
     dlm_1t2n1c8p inst_user_logic_dlm (
 
         .axi_ctrl_awvalid(axi_ctrl_user.awvalid),
@@ -39,13 +42,13 @@
 
         .hostd_axis_host_sink_tdata(axis_host_sink_mux[0].tdata),
         .hostd_axis_host_sink_tkeep(axis_host_sink_mux[0].tkeep),
-        .hostd_axis_host_sink_tid(axis_host_sink_mux[0].tid),
+        .hostd_axis_host_sink_tdest(axis_host_sink_mux[0].tid),
         .hostd_axis_host_sink_tlast(axis_host_sink_mux[0].tlast),
         .hostd_axis_host_sink_tvalid(axis_host_sink_mux[0].tvalid),
         .hostd_axis_host_sink_tready(axis_host_sink_mux[0].tready),
         .hostd_axis_host_src_tdata(axis_host_src_mux[0].tdata),
         .hostd_axis_host_src_tkeep(axis_host_src_mux[0].tkeep),
-        .hostd_axis_host_src_tid(axis_host_src_mux[0].tid),
+        .hostd_axis_host_src_tdest(axis_host_src_mux[0].tid),
         .hostd_axis_host_src_tlast(axis_host_src_mux[0].tlast),
         .hostd_axis_host_src_tvalid(axis_host_src_mux[0].tvalid),
         .hostd_axis_host_src_tready(axis_host_src_mux[0].tready),
@@ -196,13 +199,13 @@
         .rdma_0_ack_ready(rdma_0_ack.ready),
         .rdma_0_axis_sink_tdata(axis_rdma_0_sink_mux.tdata),
         .rdma_0_axis_sink_tkeep(axis_rdma_0_sink_mux.tkeep),
-        .rdma_0_axis_sink_tid(axis_rdma_0_sink_mux.tid),
+        // .rdma_0_axis_sink_tid(axis_rdma_0_sink_mux.tid),
         .rdma_0_axis_sink_tlast(axis_rdma_0_sink_mux.tlast),
         .rdma_0_axis_sink_tvalid(axis_rdma_0_sink_mux.tvalid),
         .rdma_0_axis_sink_tready(axis_rdma_0_sink_mux.tready),
         .rdma_0_axis_src_tdata(axis_rdma_0_src.tdata),
         .rdma_0_axis_src_tkeep(axis_rdma_0_src.tkeep),
-        .rdma_0_axis_src_tid(axis_rdma_0_src.tid),
+        // .rdma_0_axis_src_tid(axis_rdma_0_src.tid),
         .rdma_0_axis_src_tlast(axis_rdma_0_src.tlast),
         .rdma_0_axis_src_tvalid(axis_rdma_0_src.tvalid),
         .rdma_0_axis_src_tready(axis_rdma_0_src.tready),
@@ -210,5 +213,3 @@
         .resetn(aresetn),
         .clk(aclk)
 	);
-	
-	

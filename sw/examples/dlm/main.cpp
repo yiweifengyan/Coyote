@@ -48,13 +48,21 @@ int main(int argc, char *argv[]) {
   initTxnCmd(cproc, cnt_txn, fname_task, insoffs);
   txnManCnfg(cproc, node_id, cnt_txn, insoffs);
 
+
   // Create  queue pairs
-  ibvQpMap<ibvQpConnBpss> ictx;
+  // commented by Shien 2024-02-22
+  ibvQpMap<ibvQpConnBpss> ictx; 
+  // ibvQpMap ictx;
+  // error: no matching function for call to ‘fpga::ibvQpMap::addQpair(int, int, fpga::cProcess*, std::string&, int)
+  // void addQpair(uint32_t qpid, int32_t vfid, string ip_addr, uint32_t n_pages);
   ictx.addQpair(0, 0, &cproc, ibv_ip, 0); // qpid = 0, local_qpn = 0
   ictx.addQpair(1, 0, &cproc, ibv_ip, 1); // qpid = 1, local_qpn = 1
 
+
+  // commented by Shien 2024-02-22
   mstr ? ictx.exchangeQpMaster(port) : ictx.exchangeQpSlave(tcp_mstr_ip.c_str(), port);
   ibvQpConnBpss *iqp = ictx.getQpairConn(qpId);
+  // ibvQpConn *iqp = ictx.getQpairConn(qpId);
   iqp->ibvClear();
 
   // RDMA flow

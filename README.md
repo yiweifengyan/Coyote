@@ -173,10 +173,19 @@ to /home/shizhu/Coyote/hw/build/lynx/hdl/
 
 ~~If multiple PR configurations are present it is advisable to put the most complex configuration in the initial one (**config_0**). Additional configurations can always be created with `make dynamic`. Explicit floorplanning should be done manually after synthesis (providing default floorplanning generally makes little sense).~~
 
-Project can always be managed from Vivado GUI, for those more experienced with FPGA design flows.
+#### If using vivado GUI
+Project can always be managed from Vivado GUI, for those more experienced with FPGA design flows.  
+- Open the project locatiion: Coyote/hw/build/lynx/lynx.xpr  
+- Run Synthesis - debug from the Tcl Console and error messages
+- Run Implementation - generate the bitstream
+- Flash the bitstream  
 
+The user design logic interface integration is partially automated. 
+- Copy the content in Coyote/hw/hdl/operators/examples/perf_dlm/perf_dlm_c0_0.svh
+- Paste to Coyote/hw/build/lynx/hdl/wrappers/config_0/user_wrapper_c0_0.sv 
+- To replace the dlm_1t2n1c8p inst_user_logic_dlm (...).
 
-#### When the user design is ready, compilation can be started with the following command (1-3 hours):
+#### Or: When the user design is ready, compilation can be started with the following command (1-3 hours):
 ~~~~
 $ make compile
 zhu@hacc-build-01:~/Coyote/hw/build$ make compile 
