@@ -26,10 +26,12 @@ int main(int argc, char *argv[]) {
 
   initTxnCmd(cproc, cnt_txn, fname_task, insoffs);
   txnManCnfg(cproc, node_id, cnt_txn, insoffs);
-
+  std::cout<< "Txn Manager Config Finnished."<< std::endl;
   txnManStart(cproc);
+  std::cout<< "Txn Manager Started."<< std::endl;
   sleep(2);
   txnManPrtStatus(cproc);
+  std::cout<< "Txn Manager Status Printed."<< std::endl;
 
   return EXIT_SUCCESS;
 }

@@ -20,15 +20,76 @@
 using namespace std;
 using namespace fpga;
 
+/* The Txn Memory
+for TxnCnt
+    + 8 Byte: TxnLen
+    for TxnLen
+      + 8 Byte: NodeID, ChannelID, T-ID, Table, LockType, WriteLength
+      //1T2N1C8P: 1-bit            19-bit   
+    for maxTxnLen - TxnLen
+      +8 Byte 0000
+
+  def txnEntrySimInt(txnCnt: Int, txnLen: Int, txnMaxLen: Int, tIdOffs: Int = 0)(fNId: (Int, Int) => Int, fCId: (Int, Int) => Int, fTId: (Int, Int) => Int, fLk: (Int, Int) => Int, fWLen: (Int, Int) => Int)(implicit sysConf: SysConfig): Seq[Byte] = {
+    var txnMem = Seq.empty[Byte]
+    for (i <- 0 until txnCnt) {
+      // txnHd
+      txnMem = txnMem ++ MemStructSim.bigIntToBytes(BigInt(txnLen), 8)
+      // lkInsTab
+      // txnMem = txnMem ++ TxnEntrySim(fNId(i, 0), fCId(i, 0), fTId(i, 0) + tIdOffs, 0, 3, fWLen(i, 0)).asBytes
+      for (j <- 0 until txnLen) {
+        txnMem = txnMem ++ TxnEntrySim(fNId(i, j), fCId(i, j), fTId(i, j) + tIdOffs, 0, fLk(i, j), fWLen(i, j)).asBytes
+      }
+      for (j <- 0 until (txnMaxLen-txnLen))
+        txnMem = txnMem ++ MemStructSim.bigIntToBytes(BigInt(0), 8)
+    }
+    txnMem
+  }
+module LtTop (
+  input      [0:0]    io_nodeId,
+  input               io_lt_0_lkReq_valid,
+  output              io_lt_0_lkReq_ready,
+  input      [0:0]    io_lt_0_lkReq_payload_nId,
+  input      [21:0]   io_lt_0_lkReq_payload_tId,
+  input      [2:0]    io_lt_0_lkReq_payload_tabId,
+  input      [0:0]    io_lt_0_lkReq_payload_snId,
+  input      [5:0]    io_lt_0_lkReq_payload_txnId,
+  input      [1:0]    io_lt_0_lkReq_payload_lkType,
+  input               io_lt_0_lkReq_payload_lkRelease,
+  input               io_lt_0_lkReq_payload_txnTimeOut,
+  input               io_lt_0_lkReq_payload_txnAbt,
+  input      [5:0]    io_lt_0_lkReq_payload_lkIdx,
+  input      [2:0]    io_lt_0_lkReq_payload_wLen,
+module LtCh (
+  input               io_lkReq_valid,
+  output              io_lkReq_ready,
+  input      [0:0]    io_lkReq_payload_nId,
+  input      [21:0]   io_lkReq_payload_tId,
+  input      [2:0]    io_lkReq_payload_tabId,
+  input      [0:0]    io_lkReq_payload_snId,
+  input      [5:0]    io_lkReq_payload_txnId,
+  input      [1:0]    io_lkReq_payload_lkType,
+module LockTableBW_7 (
+  input               io_lkReq_valid,
+  output reg          io_lkReq_ready,
+  input      [0:0]    io_lkReq_payload_nId,
+  input      [18:0]   io_lkReq_payload_tId,
+  input      [2:0]    io_lkReq_payload_tabId,
+  input      [0:0]    io_lkReq_payload_snId,
+  input      [5:0]    io_lkReq_payload_txnId,
+  input      [1:0]    io_lkReq_payload_lkType,
+
+*/
+
+
 #define BOOL_STR(b) ((b)?"t":"f")
 
 int main(int argc, char *argv[]) {
 
   boost::program_options::options_description programDescription("Options:");
-  programDescription.add_options()("txnlen,l", boost::program_options::value<uint32_t>(), "txnlen")
-                                  ("txncnt,c", boost::program_options::value<uint32_t>(), "txncnt")
-                                  ("tuplelen,e", boost::program_options::value<uint32_t>(), "tuplelen")
-                                  ("wrratio,w", boost::program_options::value<double>(), "wrRatio")
+  programDescription.add_options()("txnlen,l", boost::program_options::value<uint32_t>(), "txnlen") // how many r/w per txn: same for every txn
+                                  ("txncnt,c", boost::program_options::value<uint32_t>(), "txncnt") // how many txns per txn manager in this workload.
+                                  ("tuplelen,e", boost::program_options::value<uint32_t>(), "tuplelen") // 64, 128,..., Byte per txn index: e.g., read 64B, write 128B. Assume r/w has the same tuple size
+                                  ("wrratio,w", boost::program_options::value<double>(), "wrRatio") // Write in total accesses. 0-1. 
                                   ("iszipfian,z", boost::program_options::value<bool>(), "iszipfian")
                                   ("isnaive,a", boost::program_options::value<bool>(), "isnaive")
                                   ("ztheta,t", boost::program_options::value<double>(), "zipFianTheta")
@@ -54,7 +115,8 @@ int main(int argc, char *argv[]) {
 
   // string fname = "txn_" + to_string(txnlen) + "_" + to_string(txncnt) + "_" + to_string(wrratio) + "_" + BOOL_STR(iszipfian) + "_" + BOOL_STR(isnaive) + "_" + to_string(ztheta);
 
-  string fname = "txn_" + to_string(widx) + ".bin";
+  string fname = "txn_" + to_string(widx) + "_cnt_" + to_string(txncnt) + "_len_" + to_string(txnlen) + "_tuple_" + to_string(tuplelen) + 
+                 "_wr_" + to_string(wrratio) + "_naive_" + to_string(isnaive) + "_zipf_" + to_string(iszipfian) + "_z_" + to_string(ztheta) + ".bin";
 
   // one hbm channel, each tuple with 64 B
   uint64_t gtsize = (1<<22);

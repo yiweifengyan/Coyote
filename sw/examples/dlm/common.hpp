@@ -41,6 +41,22 @@ enum class HBMRegs : uint32_t {
   CNTDONE  = CTRLOFS_HBMHOST + 6
 };
 
+/* types.scala - CMemHostIO
+  def regMap(r: AxiLite4SlaveFactory, baseR: Int): Int = {
+    implicit val baseReg = baseR
+    val rMode = r.rwInPort(mode,     r.getAddr(0), 0, "CMemHost: mode")
+    when(rMode.orR) (rMode.clearAll()) // auto clear
+    r.rwInPort(hostAddr, r.getAddr(1), 0, "CMemHost: hostAddr")
+    r.rwInPort(cmemAddr, r.getAddr(2), 0, "CMemHost: cmemAddr")
+    r.rwInPort(len,      r.getAddr(3), 0, "CMemHost: len")
+    r.rwInPort(cnt,      r.getAddr(4), 0, "CMemHost: cnt")
+    r.rwInPort(pid,      r.getAddr(5), 0, "CMemHost: pid")
+    r.read(cntDone,      r.getAddr(6), 0, "CMemHost: cntDone")
+    val assignOffs = 7
+    assignOffs
+  }
+*/
+
 enum class TXNENGRegs : uint32_t {
   FlowMstr  = CTRLOFS_TXNENG + 0,
   FlowSlve  = CTRLOFS_TXNENG + 1,
@@ -54,6 +70,57 @@ enum class TXNENGRegs : uint32_t {
   CntClk    = CTRLOFS_TXNENG + 9,
   Done      = CTRLOFS_TXNENG + 10
 };
+
+/* Types.scala - NodeNetIO
+  def regMap(r: AxiLite4SlaveFactory, baseR: Int): Int = {
+    implicit val baseReg = baseR
+    // in
+    // rdmaCtrl MSB <-> LSB: flowId(4b), qpn(24b), len(32b), en(1b)
+    r.rwInPort(rdmaCtrl(0).en, r.getAddr(0), 0, "TxnEng: RDMA Mstr en")
+    r.rwInPort(rdmaCtrl(0).len, r.getAddr(0), 1, "TxnEng: RDMA Mstr len")
+    r.rwInPort(rdmaCtrl(0).qpn, r.getAddr(0), 33, "TxnEng: RDMA Mstr qpn")
+    r.rwInPort(rdmaCtrl(0).flowId, r.getAddr(0), 57, "TxnEng: RDMA Mstr flowId")
+
+    r.rwInPort(rdmaCtrl(1).en, r.getAddr(1), 0, "TxnEng: RDMA Slve en")
+    r.rwInPort(rdmaCtrl(1).len, r.getAddr(1), 1, "TxnEng: RDMA Slve len")
+    r.rwInPort(rdmaCtrl(1).qpn, r.getAddr(1), 33, "TxnEng: RDMA Slve qpn")
+    r.rwInPort(rdmaCtrl(1).flowId, r.getAddr(1), 57, "TxnEng: RDMA Slve flowId")
+
+    val rStart = r.rwInPort(node.start,     r.getAddr(2), 0, "TxnEng: start")
+    rStart.clearWhen(rStart) // auto clear start sig
+    r.rwInPort(node.nodeId,     r.getAddr(3), 0, "TxnEng: nodeId")
+    r.rwInPort(node.txnNumTotal, r.getAddr(4), 0, "TxnEng: txnNumTotal")
+
+    var assignOffs = 5
+    node.cmdAddrOffs.foreach { e =>
+      r.rwInPort(e, r.getAddr(assignOffs), 0, "TxnEng: cmemAddr")
+      assignOffs += 1
+    }
+
+    // out
+    node.cntTxnCmt.foreach { e =>
+      r.read(e, r.getAddr(assignOffs), 0, "TxnEng: cntTxnCmt")
+      assignOffs += 1
+    }
+    node.cntTxnAbt.foreach { e =>
+      r.read(e, r.getAddr(assignOffs), 0, "TxnEng: cntTxnAbt")
+      assignOffs += 1
+    }
+    node.cntTxnLd.foreach { e =>
+      r.read(e, r.getAddr(assignOffs), 0, "TxnEng: cntTxnLd")
+      assignOffs += 1
+    }
+    node.cntClk.foreach { e =>
+      r.read(e, r.getAddr(assignOffs), 0, "TxnEng: cntClk")
+      assignOffs += 1
+    }
+    r.read(node.done.asBits, r.getAddr(assignOffs), 0, "TxnEng: done bitVector")
+    assignOffs += 1
+
+    assignOffs
+  }
+*/
+
 
 
 // help functions
@@ -88,20 +155,39 @@ uint32_t convert( const std::string& ipv4Str ) {
 int hbmRW(cProcess& cproc, const void* hMem, const bool isWr, const uint32_t len, const uint64_t hbmAddr) {
 
   cproc.setCSR(hbmAddr, static_cast<uint32_t>(HBMRegs::CMEMADDR)); // set card memory addr
+  // std::cout << "Write CSR"<< checkCSR_ADDR() << "+" << static_cast<uint32_t>(HBMRegs::CMEMADDR) << ": " << hbmAddr << std::endl;
+  // std::cout << "Write CSR Offset " << static_cast<uint32_t>(HBMRegs::CMEMADDR) << ": CMEMADDR " << hbmAddr << std::endl;
+ 
   cproc.setCSR(reinterpret_cast<uint64_t>(hMem), static_cast<uint32_t>(HBMRegs::HOSTADDR)); // set hostAddr
-  
+  // std::cout << "Write CSR Offset " << static_cast<uint32_t>(HBMRegs::HOSTADDR) << ": HOSTADDR " << reinterpret_cast<uint64_t>(hMem) << std::endl;
+ 
   cproc.setCSR(64, static_cast<uint32_t>(HBMRegs::LEN)); // set burst length
+  // std::cout << "Write CSR Offset " << static_cast<uint32_t>(HBMRegs::LEN) << ": LEN " << 64 << std::endl;
+ 
   cproc.setCSR(len/64, static_cast<uint32_t>(HBMRegs::CNT)); // set beat cnt
+  // std::cout << "Write CSR Offset " << static_cast<uint32_t>(HBMRegs::CNT) << ": CNT " << len/64 << std::endl;
+
   cproc.setCSR(cproc.getCpid(), static_cast<uint32_t>(HBMRegs::PID)); // set pid
+  // std::cout << "Write CSR Offset " << static_cast<uint32_t>(HBMRegs::PID) << ": PID " << cproc.getCpid() << std::endl;
 
   DBG("[INFO] HBM CSR set done.");
 
   if(isWr){
     cproc.setCSR(0x01, static_cast<uint32_t>(HBMRegs::MODE)); // start wr to hbm
-    while(cproc.getCSR(static_cast<uint32_t>(HBMRegs::CNTDONE)) < (len/64));
+    int wtime=0;
+    while(cproc.getCSR(static_cast<uint32_t>(HBMRegs::CNTDONE)) < (len/64)){
+      sleep(1);
+      wtime+=1;
+      if(wtime>10)
+        break;
+      std::cout << "[INFO] HBM Writing Byte "<< cproc.getCSR(static_cast<uint32_t>(HBMRegs::CNTDONE)) << std::endl;
+    }
   } else {
     cproc.setCSR(0x02, static_cast<uint32_t>(HBMRegs::MODE)); // start rd from hbm
-    while(cproc.getCSR(static_cast<uint32_t>(HBMRegs::CNTDONE)) < (len/64));
+    while(cproc.getCSR(static_cast<uint32_t>(HBMRegs::CNTDONE)) < (len/64)){
+      sleep(1);
+      std::cout << "[INFO] HBM Reading Byte "<< cproc.getCSR(static_cast<uint32_t>(HBMRegs::CNTDONE)) << std::endl;
+    }
   }
   return 0;
 }

@@ -28,7 +28,9 @@ int main(int argc, char *argv[]) {
       mstr = false;
   }
 
-  char const* env_var_ip = std::getenv("FPGA_0_IP_ADDRESS");
+  // char const* env_var_ip = std::getenv("FPGA_0_IP_ADDRESS");
+  // char const* env_var_ip = std::getenv("DEVICE_1_IP_ADDRESS_0");
+  char const* env_var_ip = std::getenv("MELLANOX_0_IP_ADDRESS_0");
   if(env_var_ip == nullptr) 
   throw std::runtime_error("IBV IP address not provided");
   string ibv_ip(env_var_ip);
@@ -45,28 +47,36 @@ int main(int argc, char *argv[]) {
   // get fpga handle
   cProcess cproc(0, getpid());
 
+  std::cout << "Got cProcess. " << std::endl;
+
   initTxnCmd(cproc, cnt_txn, fname_task, insoffs);
+  std::cout << "Txn Command Inited. " << std::endl;
   txnManCnfg(cproc, node_id, cnt_txn, insoffs);
+  std::cout << "Txn Manager Configured. " << std::endl;
 
   // Create  queue pairs
   ibvQpMap<ibvQpConnBpss> ictx;
   ictx.addQpair(0, 0, &cproc, ibv_ip, 0); // qpid = 0, local_qpn = 0
   ictx.addQpair(1, 0, &cproc, ibv_ip, 1); // qpid = 1, local_qpn = 1
+  std::cout << "ibv Queue Pairs Created. " << std::endl;
 
   mstr ? ictx.exchangeQpMaster(port) : ictx.exchangeQpSlave(tcp_mstr_ip.c_str(), port);
   ibvQpConnBpss *iqp = ictx.getQpairConn(qpId);
   iqp->ibvClear();
+  std::cout << "ibv Queue Pairs Cleared. " << std::endl;
 
   // RDMA flow
   // [qpn:len:en]
   cproc.setCSR(((uint64_t)1 + ((uint64_t)1024<<1) + ((uint64_t)0<<33)) , static_cast<uint32_t>(TXNENGRegs::FlowMstr));
   cproc.setCSR(((uint64_t)1 + ((uint64_t)1024<<1) + ((uint64_t)1<<33)) , static_cast<uint32_t>(TXNENGRegs::FlowSlve));
+  std::cout << "cProcess setCSR() Finished. " << std::endl;
 
   // Sync up
   std::cout << "\e[1mSyncing ...\e[0m" << std::endl;
   iqp->ibvSync(mstr);
 
   txnManStart(cproc);
+  std::cout << "Txn Manager Started. " << std::endl;
   sleep(2);
   txnManPrtStatus(cproc);
 

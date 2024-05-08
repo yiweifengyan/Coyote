@@ -153,9 +153,17 @@ public:
 	 * @param val : value to be written
 	 * @param offs : slave register offset
 	 */
-	inline auto setCSR(uint64_t val, uint32_t offs) { ctrl_reg[offs] = val; }
-	inline auto getCSR(uint32_t offs) { return ctrl_reg[offs]; }
-
+	inline auto setCSR(uint64_t val, uint32_t offs) { 
+		ctrl_reg[offs] = val; 
+		// std::cout << "Write CSR base "<< std::oct << (uint64_t)(ctrl_reg) << " addr: " << (uint64_t)(&ctrl_reg[offs]) << " value: " << val << std::endl;
+		std::cout << "Write CSR Addr: " << (uint64_t)(&ctrl_reg[offs]) << " value: " << val << std::endl;
+    }
+	inline auto getCSR(uint32_t offs) {
+        // std::cout << "Read CSR base " << std::oct << (uint64_t)(ctrl_reg) << " addr: " << (uint64_t)(&ctrl_reg[offs])  << " value: " << ctrl_reg[offs] << " ... ";
+		std::cout << "Read CSR Addr: " << (uint64_t)(&ctrl_reg[offs])  << " value: " << ctrl_reg[offs] << " ... ";
+		return ctrl_reg[offs]; 
+	}
+	// uint32_t checkCSR_ADDR(){return static_cast<uint32_t>(ctrl_reg);}
 	/**
 	 * @brief Invoke a transfer
 	 * 

@@ -61,10 +61,10 @@ Coyote contains the following software layers, each adding higher level of abstr
 Added/Modified by Shien 2024-02-20
 
 ## Init
- - Book a server alveo-u55c-03/04/05/… running Vivado 2022.1
-   Book address https://hacc-booking.inf.ethz.ch/index.php 
+ - Book a server alveo-u55c-03/04/05/… running Vivado 2022.1  
+   Booking address https://hacc-booking.inf.ethz.ch/index.php 
  - Login to build servers first. They are faster than those with FPGAs
- - Add bashrc to source vivado 2022.1 upon login
+ - Add bashrc to source **Vivado 2022.1** upon login
  - Clone the mem_bypass branch
 ~~~~
 $ ssh -x shizhu@alveo-u55c-03.inf.ethz.ch
@@ -86,6 +86,7 @@ $ cd hw && mkdir build && cd build
 #### Enter a valid system configuration :
 ~~~~
 $ cmake .. -DFDEV_NAME=u55c -DEXAMPLE=perf_dlm
+zhu@hacc-build-01:~/Coyote/hw/build$ cmake .. -DFDEV_NAME=u55c -DEXAMPLE=perf_dlm
 
 # This specifies these augments and adds the Coyote/hw/hdl/operators/examples/dlm 
 $ cmake .. -DFDEV_NAME=u55c -DEN_HLS=0 -DEN_BPSS=1 -DEN_STRM=1 -DEN_MEM_BPSS=1 -DN_CARD_AXI=4 -DHBM_BPSS=1 -DACLK_F=250 -DEN_RDMA_0=1 -DEN_RPC=1
@@ -105,7 +106,7 @@ elseif(EXAMPLE STREQUAL "perf_dlm")
     # Flags related to RDMA
     set(EN_RDMA_0 1)
     set(EN_RPC 1)
-    
+
 # I have added an entry to the Coyote/hw/scripts/example.tcl.in
 "perf_dlm" {
         puts "Add the dlm: Distributed Lock Management"
@@ -189,7 +190,7 @@ $ make sim
 ~~~~
 The logic integration, stimulus generation and scoreboard checking should be adapted for each individual DUT.
 
-## Driver
+## Build Driver
 
 #### After the bitstream has been loaded, the driver can be compiled on the target host machine :
 Note: Switch to FPGA server to make
@@ -225,7 +226,17 @@ zhu@hacc-build-01:~/workspace/Coyote$  ./flow_alveo.sh hw/build/bitstreams/cyt_t
 ```
 
 ## Build `SW`
-Note: Switch to FPGA server to make  
+Note: Switch to FPGA server to make
+
+What Runbin changed to do dlm test:
++ coyote/sw/include/
+  - ibvQpConn.hpp
+  - ibvQpMap.hpp
+  - sLock.hpp
++ coyote/sw/src/
+  - ibvQpConn.cpp
+  - ibvQpMap.cpp
+
 Note: /usr/bin/cmake ../ -DTARGET_DIR=examples/perf_dlm  
 Available `sw` projects (as well as any other) can be built with the following commands :
 ~~~~
